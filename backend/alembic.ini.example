@@ -1,0 +1,6 @@
+"""Database migration configuration."""
+
+# Alembic configuration for database migrations
+# Run: alembic init alembic
+# Run: alembic revision --autogenerate -m "description"
+# Run: alembic upgrade head

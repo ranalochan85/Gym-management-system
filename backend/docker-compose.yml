@@ -1,0 +1,71 @@
+"""Docker compose file for local development."""
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: gym_db
+    environment:
+      POSTGRES_USER: gym_user
+      POSTGRES_PASSWORD: gym_password
+      POSTGRES_DB: gym_management
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gym_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gym_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gym_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gym_network
+
+  # FastAPI Application
+  app:
+    build: .
+    container_name: gym_app
+    environment:
+      - DATABASE_URL=postgresql://gym_user:gym_password@db:5432/gym_management
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=your_super_secret_key_min_32_characters_required_here
+      - ENVIRONMENT=development
+      - DEBUG=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gym_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  gym_network:
+    driver: bridge
